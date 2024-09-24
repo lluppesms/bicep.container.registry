@@ -1,6 +1,6 @@
 # Bicep Container Registries
 
-![hero](img/hero.png)
+![hero](./img/hero.png)
 
 Modules are a great way to decompose your Bicep templates into smaller chunks of reusable code. This will simplify your code and make it easier to maintain and reuse, while allowing you to stitch resources together in a more modular way to deploy complex solutions. Modules will allow for both local and remote references and also facilitate version referencing.
 
