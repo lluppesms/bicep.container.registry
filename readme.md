@@ -90,13 +90,13 @@ A bicep.config file will need to be added to a project that refers to the regist
 
 ### 2.2 Security
 
-In order for the pipeline to access the bicep container registry, the service principal will need to be in the `acrpull` role for the container registry.  In this example repository, the service principal rights are granted as part of the [containerregistry.bicep](bicep/containerregistry.bicep) deployment, as defined in the [create-bicep-registry.yml](./azdo/pipelines/create-bicep-container-registry.yml) pipeline.
+In order for the pipeline to access the bicep container registry, the service principal will need to be in the `acrpull` role for the container registry.  In this example repository, the service principal is granted `acrpush` (which includes acrpull) as part of the [containerregistry.bicep](bicep/containerregistry.bicep) deployment, as deployed in the [create-bicep-registry.yml](./azdo/pipelines/create-bicep-container-registry.yml) pipeline.
 
-### 2.3 Content Warning
+### 2.3 Warning - Don't use these Bicep Files in Production!
 
 WARNING: The bicep files in this repository are for demonstration purposes only.  They are not intended for production use and may contain errors or security vulnerabilities. In fact, they intentionally contain some vulnerabilities so you can see them in the scan portion of the pipeline job.
 
-**You are using this repository and it's code at your own risk, and MUST review and test all code before using it in a production environment. By using this code, you are assuming responsibility to perform those reviews.**
+> **By using this code, you acknowledge that you are using this repository and it's code at your own risk, and you MUST review and test all code before using it in a production environment. By using this code, you are assuming responsibility to perform those reviews.**
 
 ---
 
@@ -104,21 +104,24 @@ WARNING: The bicep files in this repository are for demonstration purposes only.
 
 ### 3.1: Setup a Bicep Container Registry
 
-Register and run the pipeline [create-bicep-registry.yml](./azdo/pipelines/create-bicep-container-registry.yml) to create the initial registry. This pipeline needs five variables defined: serviceConnectionName, registryName, resourceGroupName, location, and servicePrincipalObjectId.
+Register and run the pipeline [create-bicep-registry.yml](./azdo/pipelines/create-bicep-container-registry.yml) to create the initial registry. To run, this pipeline needs five variables defined: serviceConnectionName, registryName, resourceGroupName, location, and servicePrincipalObjectId.
 
 Alternatively, you could run a command similar to the one below to create a container registry in a resource group
 
 ``` bash
 $resourceGroupName = 'yourResourceGroup'
 $registryName = 'yourRegistryName'
-$servicePrincipalObjectId = 'guid'
-az deployment group create --resource-group $resourceGroupName --template-file 'containerregistry.bicep' --parameters registryName=$registryName -servicePrincipalObjectId $servicePrincipalObjectId
+$servicePrincipalObjectId = 'yourGuid'
+az deployment group create `
+ --resource-group $resourceGroupName `
+ --template-file 'bicep/containerregistry.bicep' `
+ --parameters registryName=$registryName servicePrincipalObjectId=$servicePrincipalObjectId
 
 ```
 
 ### 3.2a: Manually Publish Bicep Files into the Container Registry
 
-When you want to publish a new Bicep file into the registry, you can run a command similar to the one below. This will push the bicep file into the registry with the module path and version defined. However, doing this manually can be rather tedious
+When you want to publish a new Bicep file into the registry, you can run a command similar to the one below. This will push the bicep file into the registry with the module path and version defined. However, doing this manually can be rather tedious.
 
 ``` bash
 $registryName="yourBicepRegistryName"
@@ -136,9 +139,9 @@ az bicep publish `
 
 Alternatively, you can set up a pipeline that will push automatically publish any bicep file changes to the container registry whenever they are committed to the Bicep folder.
 
-The [publish-bicep-modules-to-registry.yml](./azdo/pipelines/publish-bicep-modules-to-registry.yml) set up to to exactly that using a PowerShell script. Once it's set up, it will trigger whenever you check code into your repository. The pipeline needs two variables defined when you register it: registryName and serviceConnectionName.
+The [publish-bicep-modules-to-registry.yml](./azdo/pipelines/publish-bicep-modules-to-registry.yml) set up to do exactly that using a PowerShell script. Once it's set up, it will trigger whenever you check code into the main branch of your repository. The pipeline needs two variables defined when you register it: registryName and serviceConnectionName.
 
-This pipeline also uses the [Microsoft Secure DevOps Scan](https://marketplace.visualstudio.com/items?itemName=ms-securitydevops.microsoft-security-devops-azdevops) extension, which must be installed in your Azure DevOps Organization before running the pipeline. This extension will scan the code for security vulnerabilities and provide a report.
+This pipeline also optionally uses the [Microsoft Secure DevOps Scan](https://marketplace.visualstudio.com/items?itemName=ms-securitydevops.microsoft-security-devops-azdevops) extension, which must be installed in your Azure DevOps Organization before running the pipeline. This extension will scan the Bicep code for security vulnerabilities and provide a report.
 
 ---
 

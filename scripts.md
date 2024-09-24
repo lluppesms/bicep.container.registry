@@ -48,7 +48,8 @@ az acr repository list --name $registryName --query "[?contains(@, '${modulePref
   $thisModule = $_
   az acr repository show-tags --name $registryName --repository $_ --output tsv  | Foreach-Object { 
     $repositoryEntry = "$thisModule`:$_"
-	# When you delete the LATEST, it will delete every other version also...
+    # When you delete one version, it will delete every other version also, 
+    # so just look for one tag...
     if ($repositoryEntry.EndsWith(":LATEST")) {
       Write-Host "Starting delete of: $repositoryEntry"
       az acr repository delete --name $registryName --image $repositoryEntry
