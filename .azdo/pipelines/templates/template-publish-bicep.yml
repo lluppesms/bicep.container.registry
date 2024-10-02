@@ -6,8 +6,6 @@ parameters:
   default: ''
 - name: modulePrefix
   default: 'bicep/'
-- name: publishModules
-  default: 'true'
 - name: environmentName
   default: 'DEV'
 - name: serviceConnectionName
@@ -24,76 +22,73 @@ stages:
 
     - job: PublishBicepJob
       displayName: Publish Bicep Job 
-      steps:
-      # - script: az login --service-principal -u $(acrPrincipalId) -p $(acrPrincipalSecret) --tenant $(acrTenantId)
-      #   displayName: 'az login'
+      variables:
+        - name: logFileName
+          value: $(Build.ArtifactStagingDirectory)/Output/PublishBicepOutput_$(Build.BuildId).log
 
-      - script: git diff-tree --no-commit-id --name-only --diff-filter=ad -r -m $(Build.SourceVersion) 
-        displayName: 'Show Committed Files'
+      steps:
+      - checkout: self
+        clean: true
+        fetchDepth: 0
+        persistCredentials: true
+
+      - bash: |          
+          echo "BuildId=$(Build.BuildId)"
+          echo "SourceVersion=$(Build.SourceVersion)"
+          echo "Commit Message=$(Build.SourceVersionMessage)"
+
+          echo "Directory of pipeline workspace:"
+          tree -L 4 $(Pipeline.Workspace)
+        displayName: 'Display Variables and Files'
         continueOnError: true
 
-      - ${{ if eq(lower(parameters.publishModules), 'true') }}:
-        # This script will scan your Bicep files and publish them to your container registry if they are new or updated
-        - task: AzureCLI@2
-          displayName: 'Publish/Update Modules to Registry'
-          inputs:
-            azureSubscription: $(serviceConnectionName)
-            scriptType: 'pscore'
-            scriptLocation: inlineScript
-            inlineScript: |
-              # az acr login -n $(registryName)
-              $moduleCount = 0
-              $modulesAdded = 0
-              $modulesUpdated = 0
-              $version = (Get-Date -f 'yyyy-MM-dd') + ".$env:BUILD_BUILDID"
-              Write-Host "Publishing new and updated modules as version $version"
-              Write-Host $modulePrefix
-              Write-Host "Updating Registry: $(registryName)"
-              Write-Host "Scanning for modulePrefix: $(modulePrefix)"
-              Write-Host "-------------------------------------------------------------"
-              Write-Host "List of modules currently in the registry:"
-              Write-Host "az acr repository list --name $(registryName) --query ''[?contains(@, '${modulePrefix}')]'' -o tsv"
-              az acr repository list --name $(registryName) --query "[?contains(@, '${modulePrefix}')]" -o tsv
-              Write-Host "-------------------------------------------------------------"
-              Write-Host "Searching for new modules to add..."
-              $publishedModules = $(az acr repository list --name $(registryName) --query "[?contains(@, '${modulePrefix}')]" -o tsv)
-              Get-ChildItem -Recurse -Path ./bicep/*.bicep | Foreach-Object {
-                $moduleCount += 1
-                $filename = ($_ | Resolve-Path -Relative) -replace "^./" -replace '\..*'
-                $lowerfilename = $filename.ToLower().replace("bicep/", "").replace("Bicep/", "").replace("modules/", "")
-                Write-Host "-- Checking for existing registry entry: $lowerfileName"
-                If (-not ($publishedModules ?? @()).Contains(("bicep/" + $lowerfilename))) {
-                  $image = "bicep/$lowerfilename`:$version"
-                  Write-Host "  *** $lowerfilename doesn't exist - adding Image $image"
-                  $modulesAdded += 1
-                  Write-Host "    az bicep publish --file $_ --target br:$(registryName).azurecr.io/bicep/${lowerfilename}:${version}"
-                  az bicep publish --file $_ --target br:$(registryName).azurecr.io/bicep/${lowerfilename}:${version}
-                  Write-Host "    az acr import --name $(registryName) --source $(registryName).azurecr.io/bicep/${lowerfilename}:${version} --image bicep/${lowerfilename}:LATEST --force"
-                  az acr import --name $(registryName) --source $(registryName).azurecr.io/bicep/${lowerfilename}:${version} --image bicep/${lowerfilename}:LATEST --force
-                  Write-Host "    Marking module $image as read-only"
-                  Write-Host "    az acr repository update --name $(registryName) --image $image --write-enabled false"
-                  az acr repository update --name $(registryName) --image $image --write-enabled false
-                }
-              }
+      - task: PowerShell@2
+        displayName: Make Output Folder
+        inputs:
+          targetType: 'inline'
+          script: |
+            cd $(Build.ArtifactStagingDirectory)
+            md Output
+            cd Output
+            echo "Build.BuildId=$(Build.BuildId)" > $(logFileName)
+            echo "Build.SourceVersion=$(Build.SourceVersion)" >> $(logFileName)
+            echo "Build.SourceVersionMessage=$(Build.SourceVersionMessage)" >> $(logFileName)
+            cd ..
+          errorActionPreference: 'continue'
+          failOnStderr: false
 
-              Write-Host "-------------------------------------------------------------"
-              Write-Host "Searching commit for existing modules to update for commit $(Build.SourceVersion)..."
-              git diff-tree --no-commit-id --name-only --diff-filter=ad -r -m $(Build.SourceVersion) | Where-Object {$_.EndsWith('.bicep')} | Foreach-Object {
-                $moduleName = ($_ | Resolve-Path -Relative) -replace "^./" -replace '\..*'
-                If (-not ($moduleName ?? @()).Contains(('main.bicep'))) {
-                  $lowerfilename = $moduleName.ToLower().replace("bicep/", "").replace("modules/", "")
-                  Write-Host "  *** Updating existing module $lowerfilename with version $version"
-                  $modulesUpdated += 1
-                  Write-Host "    az bicep publish --file $_ --target br:$(registryName).azurecr.io/bicep/${lowerfilename}:${version}"
-                  az bicep publish --file $_ --target br:$(registryName).azurecr.io/bicep/${lowerfilename}:${version}
-                  Write-Host "    az acr import --name $(registryName) --source $(registryName).azurecr.io/bicep/${lowerfilename}:${version} --image bicep/${lowerfilename}:LATEST --force"
-                  az acr import --name $(registryName) --source $(registryName).azurecr.io/bicep/${lowerfilename}:${version} --image bicep/${lowerfilename}:LATEST --force
-                  Write-Host "    Marking module ${lowerfilename}:${version} as read-only"
-                  Write-Host "    az acr repository update --name $(registryName) --image bicep/${lowerfilename}:${version} --write-enabled false"
-                  az acr repository update --name $(registryName) --image bicep/${lowerfilename}:${version} --write-enabled false
-                }
-              }
-              Write-Host "-------------------------------------------------------------"
-              Write-Host "Total Modules in repository:   $moduleCount" 
-              Write-Host "  Modules added to registry:   $modulesAdded"
-              Write-Host "  Modules updated in registry: $modulesUpdated"
+      - task: PowerShell@2
+        displayName: List Committed Files
+        inputs:
+          targetType: 'inline'
+          script: |
+            git diff-tree --no-commit-id --name-only -r -m $(Build.SourceVersion) 
+            echo "-------------------------------------------------------------" >> $(logFileName)
+            echo "Files in this commit:" >> $(logFileName)
+            echo "git diff-tree --no-commit-id --name-only -r -m $(Build.SourceVersion)" >> $(logFileName)
+            git diff-tree --no-commit-id --name-only -r -m $(Build.SourceVersion) >> $(logFileName)
+            echo "-------------------------------------------------------------" >> $(logFileName)
+          errorActionPreference: 'continue'
+          failOnStderr: false
+
+      - task: AzureCLI@2
+        displayName: 'Publish/Update Modules to Registry'
+        inputs:
+          azureSubscription: $(serviceConnectionName)
+          azurePowerShellVersion: 'LatestVersion'
+          scriptType: 'pscore'
+          scriptPath: scripts/publishBicepRegistryChanges.ps1
+          arguments: ' -registryName $(registryName) -modulePrefix $(modulePrefix) -sourceVersion $(Build.SourceVersion) -buildId $(Build.BuildId) -logFile $(logFileName)'
+
+      - bash: |          
+          echo "Directory of pipeline workspace:"
+          tree -L 4 $(Pipeline.Workspace)
+        displayName: 'Display Files'
+        continueOnError: true
+
+      - task: PublishBuildArtifacts@1
+        displayName: 'Publish Output Artifacts'
+        inputs:
+          PathtoPublish: '$(Build.ArtifactStagingDirectory)/Output'
+          ArtifactName: 'Output'
+        continueOnError: true

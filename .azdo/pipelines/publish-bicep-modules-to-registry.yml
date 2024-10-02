@@ -11,6 +11,7 @@ trigger:
   branches:
     include:
     - main
+    - external_publish_script
   paths:
     include:
     - '/bicep/*.bicep'
@@ -28,10 +29,10 @@ parameters:
     displayName: Run Scan
     type: boolean
     default: false
-  - name: publishModules
-    displayName: Publish to Container Registry
-    type: boolean
-    default: true
+  # - name: publishModules
+  #   displayName: Publish to Container Registry
+  #   type: boolean
+  #   default: true
 
 # ------------------------------------------------------------------------------------------------------------------------
 variables:
@@ -52,4 +53,4 @@ stages:
       registryName: ${{ variables.registryName }}
       serviceConnectionName: ${{ variables.serviceConnectionName }}
       modulePrefix: ${{ variables.modulePrefix }}
-      publishModules: ${{ parameters.publishModules }}
+      #publishModules: ${{ parameters.publishModules }}

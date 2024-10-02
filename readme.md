@@ -18,9 +18,9 @@ Modules are a great way to decompose your Bicep templates into smaller chunks of
 
 There are three ways to reference modules
 
-* Modules can be stored in the local repository and [referenced directly](#local-modules) in another main.bicep file.
-* Modules can be referenced from a [`public` remote repository](#public-modules).
-* Modules can be stored in a [`private` container registry](#private-modules) and referenced from there.
+* Modules can be stored in the local repository and [referenced directly](#11-local-modules) in another main.bicep file.
+* Modules can be referenced from a [`public` remote repository](#12-public-modules).
+* Modules can be stored in a [`private` container registry](#13-private-modules) and referenced from there.
 
 ### 1.1 Local Modules
 
@@ -32,14 +32,13 @@ module servicebusModule 'bicep/website.bicep' = { ...
 
 For an example of that in action, see the [main-web-app.bicep](/main.bicep-Examples/local/main-web-app.bicep) file in this project.
 
-
 To reference either a public module or a private module, you use the following syntax:
 
 ``` bicep
 module servicebusModule 'br/<registryAlias>/<moduleName>:<moduleTag>' = { ...
 ```
 
-### 1.3 Public Modules
+### 1.2 Public Modules
 
 Microsoft maintains a large public Bicep repository with a lot of comprehensive modules.  Check it out at [https://github.com/Azure/bicep-registry-modules/tree/main/avm/res](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res). These are a great source of info as you begin to build your own modules.
 
@@ -51,7 +50,7 @@ module servicebusModule 'br/public:avm/res/operational-insights/workspace:0.6.0'
 
 For an example of using public modules, see the [main-app-insights-public.bicep](/main.bicep-Examples/public/main-app-insights-public.bicep) file in this project.
 
-### 1.4 Private Modules
+### 1.3 Private Modules
 
 This particular repository is focused on showing how to create and use modules stored in a PRIVATE container registry. This is a great way to store and share modules within your organization.
 
@@ -104,9 +103,9 @@ WARNING: The bicep files in this repository are for demonstration purposes only.
 
 ### 3.1: Setup a Bicep Container Registry
 
-Register and run the pipeline [create-bicep-registry.yml](./azdo/pipelines/create-bicep-container-registry.yml) to create the initial registry. To run, this pipeline needs five variables defined: serviceConnectionName, registryName, resourceGroupName, location, and servicePrincipalObjectId.
+Register and run the pipeline [create-bicep-registry.yml](./azdo/pipelines/create-bicep-container-registry.yml) to create the initial registry. To run, this pipeline needs five variables defined on the pipeline definition: serviceConnectionName, registryName, resourceGroupName, location, and servicePrincipalObjectId.
 
-Alternatively, you could run a command similar to the one below to create a container registry in a resource group
+Alternatively, you could run a command similar to the one below to create a container registry in a resource group manually.
 
 ``` bash
 $resourceGroupName = 'yourResourceGroup'
@@ -119,9 +118,13 @@ az deployment group create `
 
 ```
 
-### 3.2a: Manually Publish Bicep Files into the Container Registry
+### 3.2: Publish Bicep Files into the Container Registry
 
-When you want to publish a new Bicep file into the registry, you can run a command similar to the one below. This will push the bicep file into the registry with the module path and version defined. However, doing this manually can be rather tedious.
+You can publish Bicep files into the container registry manually or automatically whenever files change.
+
+#### 3.2a: Manual Publish
+
+When you want to manually publish a new Bicep file into the registry, you can run a command similar to the one below. This will push the bicep file into the registry with the module path and version defined. However, doing this manually can be rather tedious.
 
 ``` bash
 $registryName="yourBicepRegistryName"
@@ -135,13 +138,13 @@ az bicep publish `
 
 ```
 
-### 3.2b: Automatically Publish Bicep Files into the Container Registry
+#### 3.2b: Automated Publish
 
 Alternatively, you can set up a pipeline that will push automatically publish any bicep file changes to the container registry whenever they are committed to the Bicep folder.
 
-The [publish-bicep-modules-to-registry.yml](./azdo/pipelines/publish-bicep-modules-to-registry.yml) set up to do exactly that using a PowerShell script. Once it's set up, it will trigger whenever you check code into the main branch of your repository. The pipeline needs two variables defined when you register it: registryName and serviceConnectionName.
+The [publish-bicep-modules-to-registry.yml](./azdo/pipelines/publish-bicep-modules-to-registry.yml) is set up to do exactly that using a [PowerShell script](./azdo/pipelines/templates/template-publish-bicep.yml). Once it's set up, it will trigger whenever you check code into the main branch of your repository. The pipeline needs two variables defined when you register it: registryName and serviceConnectionName.
 
-This pipeline also optionally uses the [Microsoft Secure DevOps Scan](https://marketplace.visualstudio.com/items?itemName=ms-securitydevops.microsoft-security-devops-azdevops) extension, which must be installed in your Azure DevOps Organization before running the pipeline. This extension will scan the Bicep code for security vulnerabilities and provide a report.
+This pipeline also optionally employs the [Microsoft Secure DevOps Scan](https://marketplace.visualstudio.com/items?itemName=ms-securitydevops.microsoft-security-devops-azdevops) extension, which must be installed in your Azure DevOps Organization before running the pipeline. This extension will scan the Bicep code for security vulnerabilities and provide a report.
 
 ---
 

@@ -52,10 +52,11 @@ az acr repository list --name $registryName --query "[?contains(@, '${modulePref
     # so just look for one tag...
     if ($repositoryEntry.EndsWith(":LATEST")) {
       Write-Host "Starting delete of: $repositoryEntry"
-      az acr repository delete --name $registryName --image $repositoryEntry
       # add the --yes prompt if you want to skip the prompt and delete everything without asking
-      # az acr repository delete --name $registryName --image $repositoryEntry --yes
+      az acr repository delete --name $registryName --image $repositoryEntry --yes
+      #az acr repository delete --name $registryName --image $repositoryEntry
     }
   }
 }
+
 ```
