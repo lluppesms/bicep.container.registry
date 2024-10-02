@@ -28,11 +28,7 @@ parameters:
   - name: runScan
     displayName: Run Scan
     type: boolean
-    default: false
-  # - name: publishModules
-  #   displayName: Publish to Container Registry
-  #   type: boolean
-  #   default: true
+    default: true
 
 # ------------------------------------------------------------------------------------------------------------------------
 variables:
@@ -53,4 +49,3 @@ stages:
       registryName: ${{ variables.registryName }}
       serviceConnectionName: ${{ variables.serviceConnectionName }}
       modulePrefix: ${{ variables.modulePrefix }}
-      #publishModules: ${{ parameters.publishModules }}
